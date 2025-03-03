@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../models/reminders_model.dart'; // Import your ReminderModel
-import '../screens/add_reminder_screen.dart'; // Import your AddReminderScreen
-import '../screens/navbar.dart'; // Import your NavBar
-import '../models/user_profile.dart'; // Import User Profile Model
+import '../models/reminders_model.dart';
+import '../screens/add_reminder_screen.dart'; 
+import '../screens/navbar.dart';
+import '../models/user_profile.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:async'; // Import dart:async for Timer
+import 'dart:async';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
-import 'package:google_fonts/google_fonts.dart'; // Add google_fonts package
+import 'package:google_fonts/google_fonts.dart';
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
@@ -26,7 +26,7 @@ class _RemindersScreenState extends State<RemindersScreen>
   late Box<UserProfile> userProfileBox;
   String userName = "User";
   late AnimationController _animationController;
-  Timer? _randomNotificationTimer; // Timer for random notifications
+  Timer? _randomNotificationTimer;
 
   final List<String> reminderMessages = [
     "Save a little, smile a lot! 😊",
@@ -59,12 +59,12 @@ class _RemindersScreenState extends State<RemindersScreen>
     _loadUserProfile();
 
     _scheduleRandomNotifications();
-    _scheduleReminderNotifications(); // Schedule reminder notifications
+    _scheduleReminderNotifications();
   }
 
   @override
   void dispose() {
-    _randomNotificationTimer?.cancel(); // Cancel timer when screen is disposed
+    _randomNotificationTimer?.cancel(); 
     _animationController.dispose();
     super.dispose();
   }
@@ -88,11 +88,11 @@ class _RemindersScreenState extends State<RemindersScreen>
 
       await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-      // Get Android SDK version
+    
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
 
-      // Request permission for notifications (Android 13+)
+     
       if (androidInfo.version.sdkInt >= 33) {
         await flutterLocalNotificationsPlugin
             .resolvePlatformSpecificImplementation<
@@ -105,7 +105,7 @@ class _RemindersScreenState extends State<RemindersScreen>
       print("Error initializing notifications: $e");
     }
   
-    tzdata.initializeTimeZones(); //initialize timezones
+    tzdata.initializeTimeZones(); 
     tz.setLocalLocation(tz.getLocation('Africa/Dar_es_Salaam'));
   }
 
@@ -115,8 +115,8 @@ class _RemindersScreenState extends State<RemindersScreen>
 
     const AndroidNotificationDetails androidNotificationDetails =
         AndroidNotificationDetails(
-      'encouragement_channel', // Changed channel ID
-      'Encouragement',        // Changed channel Name
+      'encouragement_channel', 
+      'Encouragement',       
       importance: Importance.high,
       priority: Priority.high,
       ticker: 'ticker',
@@ -126,9 +126,9 @@ class _RemindersScreenState extends State<RemindersScreen>
         NotificationDetails(android: androidNotificationDetails);
 
     await flutterLocalNotificationsPlugin.show(
-      1, // Changed notification ID to avoid conflict with reminder notifications if you have any in future
-      'Words of Encouragement!', // Changed title
-      'Hello $userName, $randomMessage', // Added username to the message
+      1, 
+      'Words of Encouragement!', 
+      'Hello $userName, $randomMessage', 
       notificationDetails,
     );
   }
@@ -147,7 +147,7 @@ class _RemindersScreenState extends State<RemindersScreen>
             reminder.time.minute,
           );
           if (reminderTime.isBefore(now)) {
-            reminderTime.add(Duration(days: 1)); //if the time has passed today, set it to tomorrow.
+            reminderTime.add(Duration(days: 1)); 
           }
           if (reminderTime.difference(now).inMinutes <= 1) {
             _showReminderNotification(reminder);
@@ -158,27 +158,27 @@ class _RemindersScreenState extends State<RemindersScreen>
   }
 
   void _scheduleRandomNotifications() {
-    // Set the interval for random notifications (e.g., daily at noon)
+    
     final now = DateTime.now();
-    final noonToday = DateTime(now.year, now.month, now.day, 12, 0, 0); // Noon today
+    final noonToday = DateTime(now.year, now.month, now.day, 12, 0, 0); 
     DateTime nextNotificationTime;
 
     if (now.isAfter(noonToday)) {
-      // If it's already past noon, schedule for noon tomorrow
+      
       nextNotificationTime = noonToday.add(Duration(days: 1));
     } else {
-      // Otherwise, schedule for noon today
+      
       nextNotificationTime = noonToday;
     }
 
     final initialDelay = nextNotificationTime.difference(now);
 
     _randomNotificationTimer = Timer(initialDelay, () {
-      _sendRandomReminderNotification(); // Send notification at the scheduled time
+      _sendRandomReminderNotification(); 
 
-      // Schedule the next notification for the next day
+
       _randomNotificationTimer = Timer.periodic(Duration(days: 1), (timer) {
-        _sendRandomReminderNotification(); // Send notification daily
+        _sendRandomReminderNotification(); 
       });
     });
   }
@@ -196,7 +196,7 @@ class _RemindersScreenState extends State<RemindersScreen>
         NotificationDetails(android: androidNotificationDetails);
 
     await flutterLocalNotificationsPlugin.show(
-      reminder.id.hashCode, // Use a unique ID
+      reminder.id.hashCode, 
       'Reminder',
       reminder.message,
       notificationDetails,
@@ -232,7 +232,7 @@ class _RemindersScreenState extends State<RemindersScreen>
             context,
             MaterialPageRoute(builder: (context) => AddReminderScreen()),
           );
-          setState(() {}); // Refresh the list after adding a reminder
+          setState(() {}); 
         },
       ),
       body: ValueListenableBuilder(
