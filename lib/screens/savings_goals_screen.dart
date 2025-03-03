@@ -41,7 +41,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> with SingleTick
             decoration: InputDecoration(
               labelText: "Enter amount (TZS)",
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ), // Added missing parenthesis here
+            ),
           ),
           actions: <Widget>[
             TextButton(
@@ -92,9 +92,9 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> with SingleTick
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: Text("Delete"),
               onPressed: () {
-                savingsBox.delete(goal.key);
+                savingsBox.delete(goal.key); // Delete the goal
                 setState(() {});
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Close the dialog
               },
             ),
           ],
@@ -105,7 +105,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-        var settingsBox = Hive.box<UserProfile>('settings');
+    var settingsBox = Hive.box<UserProfile>('settings');
     var userProfile = settingsBox.getAt(0) ?? UserProfile(name: 'User', preferredCurrency: 'USD');
     return FutureBuilder<Box<SavingsGoalModel>>(
       future: _initializeSavingsBox(),
@@ -120,7 +120,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> with SingleTick
             ),
             body: Center(child: CircularProgressIndicator()),
           );
-        }  else {
+        } else {
           savingsBox = snapshot.data!;
           return Scaffold(
             appBar: AppBar(
@@ -192,11 +192,36 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> with SingleTick
 
                             // Displaying all saved amounts with date/time
                             Text("Recent Savings:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue)),
+
+                            // Use Dismissible to handle swipe-to-delete
                             ...saving.savingsEntries.reversed.map((entry) {
-                              return ListTile(
-                                leading: Icon(Icons.monetization_on, color: Colors.green),
-                                title: Text("+${entry['amount']} TZS", style: TextStyle(color: Colors.green, fontSize: 16)),
-                                subtitle: Text("${entry['date']}", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                              return Dismissible(
+                                key: ValueKey(entry),
+                                direction: DismissDirection.startToEnd,
+                                onDismissed: (direction) {
+                                  setState(() {
+                                    saving.savingsEntries.remove(entry);
+                                    // Recalculate the total saved amount after removing an entry
+                                    double totalSaved = 0;
+                                    for (var e in saving.savingsEntries) {
+                                      totalSaved += e['amount'];
+                                    }
+                                    saving.savedAmount = totalSaved;
+                                    savingsBox.put(saving.key, saving); // Save the changes
+                                  });
+                                },
+                                background: Container(color: Colors.red),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    // Open dialog to edit saving entry
+                                    _showEditSavingDialog(context, saving, entry);
+                                  },
+                                  child: ListTile(
+                                    leading: Icon(Icons.monetization_on, color: Colors.green),
+                                    title: Text("+${entry['amount']} TZS", style: TextStyle(color: Colors.green, fontSize: 16)),
+                                    subtitle: Text("${entry['date']}", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                                  ),
+                                ),
                               );
                             }),
                           ],
@@ -216,6 +241,59 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> with SingleTick
             ),
           );
         }
+      },
+    );
+  }
+
+  void _showEditSavingDialog(BuildContext context, SavingsGoalModel goal, Map<String, dynamic> entry) {
+    TextEditingController amountController = TextEditingController(text: entry['amount'].toString());
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Edit Savings Entry", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+          content: TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: "Edit amount (TZS)",
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text("Cancel", style: TextStyle(color: Colors.grey)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              child: Text("Save"),
+              onPressed: () {
+                double newAmount = double.tryParse(amountController.text) ?? 0;
+                if (newAmount > 0) {
+                  setState(() {
+                    // Update the entry amount
+                    entry['amount'] = newAmount;
+
+                    // Recalculate the total saved amount
+                    double totalSaved = 0;
+                    for (var entry in goal.savingsEntries) {
+                      totalSaved += entry['amount'];
+                    }
+                    goal.savedAmount = totalSaved;
+
+                    // Save the updated goal
+                    savingsBox.put(goal.key, goal); // Save the changes to the box
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        );
       },
     );
   }
