@@ -8,7 +8,9 @@ import '../screens/navbar.dart'; // Import your NavBar
 import '../models/user_profile.dart'; // Import User Profile Model
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:async'; // Import dart:async for Timer
-
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:google_fonts/google_fonts.dart'; // Add google_fonts package
 
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({super.key});
@@ -49,8 +51,6 @@ class _RemindersScreenState extends State<RemindersScreen>
     });
 
     remindersBox = Hive.box<ReminderModel>('reminders');
-    print("Is remindersBox open in RemindersScreen initState?: ${remindersBox.isOpen}");
-
     userProfileBox = Hive.box<UserProfile>('settings');
     _animationController = AnimationController(
       vsync: this,
@@ -58,7 +58,8 @@ class _RemindersScreenState extends State<RemindersScreen>
     );
     _loadUserProfile();
 
-    _scheduleRandomNotifications(); // Schedule random notifications on init
+    _scheduleRandomNotifications();
+    _scheduleReminderNotifications(); // Schedule reminder notifications
   }
 
   @override
@@ -103,6 +104,9 @@ class _RemindersScreenState extends State<RemindersScreen>
     } catch (e) {
       print("Error initializing notifications: $e");
     }
+  
+    tzdata.initializeTimeZones(); //initialize timezones
+    tz.setLocalLocation(tz.getLocation('Africa/Dar_es_Salaam'));
   }
 
   Future<void> _sendRandomReminderNotification() async {
@@ -127,6 +131,30 @@ class _RemindersScreenState extends State<RemindersScreen>
       'Hello $userName, $randomMessage', // Added username to the message
       notificationDetails,
     );
+  }
+
+  void _scheduleReminderNotifications() {
+    Timer.periodic(Duration(minutes: 1), (timer) {
+      final now = tz.TZDateTime.now(tz.local);
+      for (var reminder in remindersBox.values) {
+        if (reminder.isEnabled) {
+          final reminderTime = tz.TZDateTime(
+            tz.local,
+            now.year,
+            now.month,
+            now.day,
+            reminder.time.hour,
+            reminder.time.minute,
+          );
+          if (reminderTime.isBefore(now)) {
+            reminderTime.add(Duration(days: 1)); //if the time has passed today, set it to tomorrow.
+          }
+          if (reminderTime.difference(now).inMinutes <= 1) {
+            _showReminderNotification(reminder);
+          }
+        }
+      }
+    });
   }
 
   void _scheduleRandomNotifications() {
@@ -155,6 +183,25 @@ class _RemindersScreenState extends State<RemindersScreen>
     });
   }
 
+  Future<void> _showReminderNotification(ReminderModel reminder) async {
+    const AndroidNotificationDetails androidNotificationDetails =
+        AndroidNotificationDetails(
+      'reminder_channel',
+      'Reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
+    const NotificationDetails notificationDetails =
+        NotificationDetails(android: androidNotificationDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      reminder.id.hashCode, // Use a unique ID
+      'Reminder',
+      reminder.message,
+      notificationDetails,
+    );
+  }
 
   void _loadUserProfile() {
     if (userProfileBox.isNotEmpty) {
@@ -169,7 +216,7 @@ class _RemindersScreenState extends State<RemindersScreen>
     print("Is remindersBox open BEFORE ValueListenableBuilder?: ${remindersBox.isOpen}");
     return Scaffold(
       appBar: AppBar(
-        title: Text("Reminders"),
+        title: Text("Reminders", style: GoogleFonts.notoSans()),
         backgroundColor: Colors.blue,
       ),
       drawer: NavBar(
@@ -193,7 +240,10 @@ class _RemindersScreenState extends State<RemindersScreen>
         builder: (context, Box<ReminderModel> box, _) {
           if (box.isEmpty) {
             return Center(
-              child: Text("No reminders set. Add one!"),
+              child: Text(
+                "No reminders set. Add one!",
+                style: GoogleFonts.notoSans(),
+              ),
             );
           }
           return ListView.builder(
@@ -243,22 +293,10 @@ class _RemindersScreenState extends State<RemindersScreen>
                       ],
                     ),
                     child: ListTile(
-                      leading: Icon(Icons.alarm, color: Colors.blue, size: 32),
-                      title: Text(
+                      title: Text(reminder.message, style: GoogleFonts.notoSans()),
+                      subtitle: Text(
                         DateFormat.jm().format(reminder.time),
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(reminder.message),
-                      trailing: Switch(
-                        value: reminder.isEnabled,
-                        activeColor: Colors.blue,
-                        onChanged: (value) {
-                          setState(() {
-                            reminder.isEnabled = value;
-                            reminder.save();
-                          });
-                          // Removed the call to _sendRandomReminderNotification() from here
-                        },
+                        style: GoogleFonts.notoSans(),
                       ),
                     ),
                   ),
